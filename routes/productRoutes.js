@@ -4,7 +4,7 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
 
-const Product = require("../models/product"); // ✅ ADD THIS
+const Product = require("../models/product");
 
 const {
   addProduct,
@@ -15,7 +15,23 @@ const {
   getAllProducts
 } = require("../controllers/productController");
 
-/* ================= ADD PRODUCT ================= */
+/**
+ * @swagger
+ * tags:
+ *   name: Products
+ *   description: Product management APIs
+ */
+
+/**
+ * @swagger
+ * /api/products/add:
+ *   post:
+ *     summary: Add new product
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Product added successfully
+ */
 router.post(
   "/add",
   auth,
@@ -23,16 +39,71 @@ router.post(
   addProduct
 );
 
-/* ================= GET SELLER PRODUCTS ================= */
+/**
+ * @swagger
+ * /api/products/my-products:
+ *   get:
+ *     summary: Get seller products
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Seller products fetched
+ */
 router.get("/my-products", auth, getSellerProducts);
 
-/* ================= GET SINGLE PRODUCT ================= */
+/**
+ * @swagger
+ * /api/products/single/{id}:
+ *   get:
+ *     summary: Get single product
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Product ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Product fetched
+ */
 router.get("/single/:id", auth, getSingleProduct);
 
+/**
+ * @swagger
+ * /api/products/delete/{id}:
+ *   delete:
+ *     summary: Delete product
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Product deleted
+ */
 router.delete("/delete/:id", auth, deleteProduct);
 
+/**
+ * @swagger
+ * /api/products/getAllProducts:
+ *   get:
+ *     summary: Get all products
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: All products fetched
+ */
 router.get("/getAllProducts", getAllProducts);
 
+/**
+ * @swagger
+ * /api/products/update/{id}:
+ *   put:
+ *     summary: Update product
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Product updated
+ */
 router.put(
   "/update/:id",
   auth,
@@ -40,22 +111,27 @@ router.put(
   updateProduct
 );
 
-/* ================= LOW STOCK PRODUCTS ================= */
+/**
+ * @swagger
+ * /api/products/low-stock:
+ *   get:
+ *     summary: Get low stock products
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Low stock products fetched
+ */
 router.get("/low-stock", async (req, res) => {
   try {
     const { category, search } = req.query;
 
     let filter = {};
-
-    // ✅ Low stock condition (safe version)
     filter.stock = { $lte: 5 };
 
-    // ✅ Category filter
     if (category) {
       filter.category = category;
     }
 
-    // ✅ Search filter
     if (search) {
       filter.name = { $regex: search, $options: "i" };
     }
