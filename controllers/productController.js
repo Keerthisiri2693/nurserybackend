@@ -12,56 +12,13 @@ exports.addProduct = async (req, res) => {
       });
     }
 
-    const {
-      name,
-      sku,
-      category,
-      categoryName,
-      section,
-      subcategory,
-      price,
-      mrp,
-      stock,
-      lowStockLimit,
-      light,
-      watering,
-      height,
-      description,
-      about,
-      growing,
-      care,
-      uses,
-      funFacts,
-      status,
-    } = req.body;
-
-    const imagePaths = req.files
-      ? req.files.map((file) => file.path)
-      : [];
+    const imagePaths = req.files?.map(file => file.path) || [];
 
     const product = await Product.create({
       seller: req.user.id,
-      name,
-      sku,
-      category,
-      categoryName,
-      section,
-      subcategory,
-      price,
-      mrp,
-      stock,
-      lowStockLimit,
+      ...req.body,
       images: imagePaths,
-      light,
-      watering,
-      height,
-      description,
-      about,
-      growing,
-      care,
-      uses,
-      funFacts,
-      status: status || "Active",
+      status: req.body.status || "Active",
     });
 
     res.status(201).json({
@@ -74,7 +31,7 @@ exports.addProduct = async (req, res) => {
     console.log("Add Product Error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server Error",
     });
   }
 };
@@ -83,8 +40,16 @@ exports.addProduct = async (req, res) => {
 
 exports.getSellerProducts = async (req, res) => {
   try {
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
     const products = await Product.find({
-      seller: req.user.id, // FIXED (use req.user.id)
+      seller: req.user.id,
     }).sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -97,7 +62,7 @@ exports.getSellerProducts = async (req, res) => {
     console.log("Get Seller Products Error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server Error",
     });
   }
 };
@@ -106,14 +71,17 @@ exports.getSellerProducts = async (req, res) => {
 
 exports.getSingleProduct = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid Product ID",
       });
     }
 
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(id);
 
     if (!product) {
       return res.status(404).json({
@@ -131,7 +99,7 @@ exports.getSingleProduct = async (req, res) => {
     console.log("Single Product Error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server Error",
     });
   }
 };
@@ -140,7 +108,10 @@ exports.getSingleProduct = async (req, res) => {
 
 exports.deleteProduct = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid Product ID",
@@ -148,8 +119,8 @@ exports.deleteProduct = async (req, res) => {
     }
 
     const product = await Product.findOneAndDelete({
-      _id: req.params.id,
-      seller: req.user.id, // FIXED
+      _id: id,
+      seller: req.user.id,
     });
 
     if (!product) {
@@ -168,7 +139,7 @@ exports.deleteProduct = async (req, res) => {
     console.log("Delete Product Error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server Error",
     });
   }
 };
@@ -177,7 +148,10 @@ exports.deleteProduct = async (req, res) => {
 
 exports.updateProduct = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid Product ID",
@@ -185,8 +159,8 @@ exports.updateProduct = async (req, res) => {
     }
 
     const product = await Product.findOne({
-      _id: req.params.id,
-      seller: req.user.id, // FIXED
+      _id: id,
+      seller: req.user.id,
     });
 
     if (!product) {
@@ -196,13 +170,11 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
-    const updatedImages = req.files?.length
-      ? req.files.map((file) => file.path)
-      : product.images;
+    const newImages = req.files?.map(file => file.path);
 
     Object.assign(product, {
       ...req.body,
-      images: updatedImages,
+      images: newImages?.length ? newImages : product.images,
     });
 
     await product.save();
@@ -217,23 +189,22 @@ exports.updateProduct = async (req, res) => {
     console.log("Update Product Error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server Error",
     });
   }
 };
 
-/* ================= GET ALL PRODUCTS (PUBLIC) ================= */
+/* ================= GET ALL PRODUCTS ================= */
 
 exports.getAllProducts = async (req, res) => {
   try {
+
     const { categoryName } = req.query;
 
-    let filter = {}; // remove status filter
+    let filter = {};
 
     if (categoryName) {
-      filter.categoryName = {
-        $regex: new RegExp(`^${categoryName}$`, "i"),
-      };
+      filter.categoryName = new RegExp(`^${categoryName}$`, "i");
     }
 
     const products = await Product.find(filter)
@@ -249,7 +220,7 @@ exports.getAllProducts = async (req, res) => {
     console.log("Get Products Error:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server Error",
     });
   }
 };
