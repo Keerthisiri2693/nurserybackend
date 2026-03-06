@@ -10,8 +10,16 @@ exports.registerSeller = async (req, res) => {
     const { shopName, email, phone, gst, password } = req.body;
     const logo = req.file ? req.file.path : null;
 
+    if (!shopName || !email || !phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Required fields missing",
+      });
+    }
+
     // Check existing seller
     const existingSeller = await Seller.findOne({ email });
+
     if (existingSeller) {
       return res.status(400).json({
         success: false,
@@ -22,7 +30,7 @@ exports.registerSeller = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate 6-digit OTP
+    // Generate OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
     // Create seller
@@ -34,37 +42,56 @@ exports.registerSeller = async (req, res) => {
       password: hashedPassword,
       logo,
       otp,
-      otpExpiry: Date.now() + 10 * 60 * 1000, // 10 minutes
+      otpExpiry: Date.now() + 10 * 60 * 1000,
       isVerified: false,
     });
 
-    // Send OTP email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Verify Your Seller Account - OTP",
-      html: `
-        <h2>Hello ${shopName},</h2>
-        <p>Your OTP for account verification is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP will expire in 10 minutes.</p>
-      `,
-    });
+    /* -------- SEND EMAIL (SAFE) -------- */
+
+    try {
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Verify Your Seller Account - OTP",
+        html: `
+          <h2>Hello ${shopName}</h2>
+          <p>Your OTP for verification:</p>
+          <h1>${otp}</h1>
+          <p>Expires in 10 minutes</p>
+        `,
+      });
+
+    } catch (mailError) {
+
+      console.log("EMAIL ERROR:", mailError.message);
+
+    }
+
+    /* -------- RESPONSE -------- */
 
     res.status(201).json({
       success: true,
-      message: "OTP sent to registered email",
+      message: "Seller registered successfully. OTP sent if email service available.",
       email: seller.email,
     });
 
   } catch (error) {
-    console.log("Register Error:", error);
+
+    console.log("REGISTER ERROR:", error);
+
     res.status(500).json({
       success: false,
       message: "Registration failed",
     });
+
   }
 };
+   
+ 
+  
+
+ 
 
 
 /* ================= VERIFY OTP ================= */
