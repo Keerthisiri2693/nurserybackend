@@ -15,4 +15,4 @@ const customerSchema = new mongoose.Schema({
 { timestamps: true }
 );
 
-module.exports = mongoose.model("customer",customerSchema);
+module.exports = mongoose.model("Customer",customerSchema);
