@@ -4,7 +4,7 @@ const { registerCustomer,verifyOtp,login } = require("../controllers/customerCon
 
 
 
-const { resendOtp } = require("../controllers/sellerController");
+const { resendOtp } = require("../controllers/customerController");
 
 router.post("/resend-otp", resendOtp);
 
