@@ -4,75 +4,79 @@ const jwt = require("jsonwebtoken");
 const transporter = require("../config/email");
 
 
+/* ================= REGISTER CUSTOMER ================= */
+
 exports.registerCustomer = async (req, res) => {
   try {
+
     const { fullname, email, password } = req.body;
 
     if (!fullname || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: "All fields are required"
       });
     }
 
-    // Check existing customer
     const existingCustomer = await Customer.findOne({ email });
+
     if (existingCustomer) {
       return res.status(400).json({
         success: false,
-        message: "Customer already exists",
+        message: "Customer already exists"
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate 4-digit OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Create customer  ✅ FIXED HERE
     const customer = await Customer.create({
       fullname,
       email,
       password: hashedPassword,
       otp,
       otpExpiry: Date.now() + 10 * 60 * 1000,
-      isVerified: false,
+      isVerified: false
     });
 
-    // Send OTP email
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: "Verify Your Customer Account - OTP",
       html: `
-        <h2>Hello ${fullname},</h2>
+        <h2>Hello ${fullname}</h2>
         <p>Your OTP for account verification is:</p>
         <h1>${otp}</h1>
         <p>This OTP will expire in 10 minutes.</p>
-      `,
+      `
     });
 
     res.status(201).json({
       success: true,
       message: "OTP sent to registered email",
-      email: customer.email, // ✅ FIXED
+      email: customer.email
     });
 
   } catch (error) {
-    console.log("Register Error:", error); // check console
+
+    console.log("REGISTER ERROR:", error);
+
     res.status(500).json({
       success: false,
-      message: "Registration failed",
+      message: "Registration failed"
     });
+
   }
 };
+
 
 
 /* ================= VERIFY OTP ================= */
 
 exports.verifyOtp = async (req, res) => {
   try {
+
     const { email, otp } = req.body;
 
     const customer = await Customer.findOne({ email });
@@ -80,14 +84,14 @@ exports.verifyOtp = async (req, res) => {
     if (!customer) {
       return res.status(400).json({
         success: false,
-        message: "Customer not found",
+        message: "Customer not found"
       });
     }
 
     if (customer.otp !== otp || customer.otpExpiry < Date.now()) {
       return res.status(400).json({
         success: false,
-        message: "Invalid or expired OTP",
+        message: "Invalid or expired OTP"
       });
     }
 
@@ -97,7 +101,6 @@ exports.verifyOtp = async (req, res) => {
 
     await customer.save();
 
-    // Generate token after verification
     const token = jwt.sign(
       { id: customer._id },
       process.env.JWT_SECRET,
@@ -107,22 +110,28 @@ exports.verifyOtp = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Account verified successfully",
-      token,
+      token
     });
 
   } catch (error) {
+
+    console.log("VERIFY OTP ERROR:", error);
+
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Server error"
     });
+
   }
 };
+
 
 
 /* ================= RESEND OTP ================= */
 
 exports.resendOtp = async (req, res) => {
   try {
+
     const { email } = req.body;
 
     const customer = await Customer.findOne({ email });
@@ -130,48 +139,50 @@ exports.resendOtp = async (req, res) => {
     if (!customer) {
       return res.status(400).json({
         success: false,
-        message: "Customer not found",
+        message: "Customer not found"
       });
     }
 
     if (customer.isVerified) {
       return res.status(400).json({
         success: false,
-        message: "Account already verified",
+        message: "Account already verified"
       });
     }
 
-    // Generate new 4-digit OTP
     const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
     customer.otp = newOtp;
-    customer.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+    customer.otpExpiry = Date.now() + 10 * 60 * 1000;
+
     await customer.save();
 
-    // Send new OTP email
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: "Resend OTP - Verify Your Customer Account",
       html: `
-        <h2>Hello ${seller.shopName},</h2>
-        <p>Your new OTP for account verification is:</p>
+        <h2>Hello ${customer.fullname}</h2>
+        <p>Your new OTP is:</p>
         <h1>${newOtp}</h1>
         <p>This OTP will expire in 10 minutes.</p>
-      `,
+      `
     });
 
     res.status(200).json({
       success: true,
-      message: "OTP resent successfully",
+      message: "OTP resent successfully"
     });
 
   } catch (error) {
-    console.log("Resend OTP Error:", error);
+
+    console.log("RESEND OTP ERROR:", error);
+
     res.status(500).json({
       success: false,
-      message: "Failed to resend OTP",
+      message: "Failed to resend OTP"
     });
+
   }
 };
 
@@ -181,6 +192,7 @@ exports.resendOtp = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
+
     const { email, password } = req.body;
 
     const customer = await Customer.findOne({ email });
@@ -188,15 +200,14 @@ exports.login = async (req, res) => {
     if (!customer) {
       return res.status(400).json({
         success: false,
-        message: "Customer not found",
+        message: "Customer not found"
       });
     }
 
-    // Block login if not verified
     if (!customer.isVerified) {
       return res.status(400).json({
         success: false,
-        message: "Please verify your email first",
+        message: "Please verify your email first"
       });
     }
 
@@ -205,7 +216,7 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({
         success: false,
-        message: "Incorrect password",
+        message: "Incorrect password"
       });
     }
 
@@ -222,18 +233,18 @@ exports.login = async (req, res) => {
       customer: {
         _id: customer._id,
         fullname: customer.fullname,
-        email: customer.email,
-      },
+        email: customer.email
+      }
     });
 
   } catch (error) {
-     console.error("LOGIN ERROR:", error);   // Add this
+
+    console.log("LOGIN ERROR:", error);
+
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Server error"
     });
+
   }
 };
-
-
-
